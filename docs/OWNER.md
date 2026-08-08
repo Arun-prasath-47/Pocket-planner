@@ -53,3 +53,53 @@ No code is needed — you are the app owner via the Supabase dashboard:
 
 Household data itself is private to each household by design (RLS), so the app
 does not expose a public admin page — owner visibility lives in Supabase.
+
+## Managing users as the owner
+
+There is no "admin login" inside the app — you administer users through the
+**Supabase dashboard** using the email you created the Supabase project with
+(that email becomes the admin). Sign in at https://supabase.com and open your
+project.
+
+| Task | Where |
+|------|-------|
+| See every user's email, signup date, last sign-in | **Authentication → Users** |
+| Block/suspend or delete an account | **Authentication → Users → user row → ⋯ menu** |
+| Change a user's email address | **Authentication → Users → user → Edit → Email** |
+| Send a user a password-reset email | **Authentication → Users → user → ⋯ → Send recovery** |
+| View profiles, currency, onboarding status | **Table Editor → profiles** |
+| Reply to support questions per user | **Table Editor → profiles** (`email`, `full_name`, `created_at`) |
+
+### Passwords
+
+Passwords are stored **hashed** by Supabase Auth — neither you nor anyone else
+can ever view a user's plaintext password (this is deliberate; the app has no
+backdoor). The safe ways to handle passwords:
+
+- **User forgot password → they self-serve.** In the app's sign-in form they
+  click **Forgot password?**, enter their email, and click the reset link they
+  receive. This is the supported flow and requires no admin action.
+- **Owner sends a reset** → dashboard **Send recovery** emails them the same
+  link.
+- **Owner forces a new password** (e.g. user lost access to their email) →
+  only via the Supabase **Management API** `PUT /auth/v1/admin/users/{id}`
+  with `{"password": "..."}` using your service_role/secret key. Prefer the
+  recovery-email route; forcing a password is the last resort.
+
+### App-side password reset (already implemented)
+
+- Sign-in form has a **Forgot password?** link → user enters email →
+  `resetPasswordForEmail(email)` sends a link pointing at `/reset-password`.
+- `/reset-password` (new route) verifies the recovery session and shows a
+  "Choose a new password" form, then updates the password and signs the user in.
+
+### Important
+
+- **Emails must be configured.** Reset links, sign-up confirmations, and
+  "Send recovery" all rely on Supabase Auth sending email. Default Supabase
+  email limits apply to new projects — enable a custom SMTP provider
+  (Settings → Auth → SMTP) before launch so confirmations and resets arrive
+  reliably.
+- **Email confirmation** should be left ON (default) so accounts are only
+  active after the user confirms their address.
+
