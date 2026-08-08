@@ -29,7 +29,7 @@ export async function getProfile(supabase: DB, userId: string): Promise<Profile>
     currency: "INR",
     cycle_start_day: 1,
     household_id: hh.id,
-    onboarded: true,
+    onboarded: false,
   };
   const { data: created, error: createErr } = await supabase
     .from("profiles")

@@ -169,7 +169,7 @@ export async function generateCopilotAdvice(
       return `💡 **Smart Savings Action Plan:**\n1. Discretionary spending is currently **${curr} ${nonEss.toLocaleString()}** (${Math.round((nonEss / (totalExp || 1)) * 100)}% of total expenses).\n2. Capping non-essential dining and entertainment by 20% would save you approx **${curr} ${Math.round(nonEss * 0.2).toLocaleString()}** monthly!`;
     }
 
-    return `🤖 **Pocket Copilot Snapshot:**\n- Monthly Income: **${curr} ${totalInc.toLocaleString()}**\n- Expenses: **${curr} ${totalExp.toLocaleString()}**\n- Net Surplus: **${curr} ${balance.toLocaleString()}**\n\nAsk me specific questions like "Can I afford $200?" or "Where am I spending the most?"`;
+    return `🤖 **Pocket Copilot Snapshot:**\n- Monthly Income: **${curr} ${totalInc.toLocaleString()}**\n- Expenses: **${curr} ${totalExp.toLocaleString()}**\n- Net Surplus: **${curr} ${balance.toLocaleString()}**\n\nAsk me specific questions like "Can I afford ${curr} 200?" or "Where am I spending the most?"`;
   }
 
   try {

@@ -79,6 +79,14 @@ export const CURRENCIES: { code: string; symbol: string; label: string }[] = [
   { code: "SGD", symbol: "S$", label: "Singapore Dollar" },
 ];
 
+export const CURRENCY_SYMBOLS: Record<string, string> = Object.fromEntries(
+  CURRENCIES.map((c) => [c.code, c.symbol]),
+);
+
+export function currencySymbol(currency: string): string {
+  return CURRENCY_SYMBOLS[currency] ?? (currency || "INR");
+}
+
 export const PAYMENT_TYPES = ["cash", "card", "bank transfer", "wallet", "other"];
 
 export const RELATIONS = [

@@ -86,30 +86,6 @@ function AuthPage() {
     setCheckEmail(true);
   }
 
-  async function handleDemoSignIn() {
-    setLoading(true);
-    const demoCredentials = { email: "demo@pocketplanner.app", password: "DemoPassword123!" };
-    const signIn = await supabase.auth.signInWithPassword(demoCredentials);
-    let user = signIn.data.user;
-    let error = signIn.error;
-    if (error) {
-      // Create demo account on the fly if it doesn't exist
-      const res = await supabase.auth.signUp({
-        ...demoCredentials,
-        options: { data: { full_name: "Demo Family" } },
-      });
-      user = res.data.user;
-      error = res.error;
-    }
-    setLoading(false);
-    if (error || !user) {
-      toast.error(error?.message ?? "Could not sign in to demo account");
-      return;
-    }
-    toast.success("Signed in as Demo User");
-    navigate({ to: "/dashboard", replace: true });
-  }
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-5 py-10">
       <Link to="/" className="mb-8 flex items-center gap-2">
@@ -209,17 +185,6 @@ function AuthPage() {
                 </form>
               </TabsContent>
             </Tabs>
-
-            <div className="mt-6 border-t pt-4">
-              <Button
-                variant="outline"
-                className="w-full border-dashed"
-                onClick={handleDemoSignIn}
-                disabled={loading}
-              >
-                ⚡ Explore Demo Account (1-Click)
-              </Button>
-            </div>
           </div>
         )}
       </div>

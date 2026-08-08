@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Plus, ShieldCheck, Trash2, Upload } from "lucide-react";
+import { Download, History, Plus, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import {
 import { bootstrapQuery } from "@/lib/queries";
 import { deleteCategory, saveCategory, updateSettings } from "@/lib/pocket.functions";
 import { CURRENCIES } from "@/lib/finance";
-import { logAuditEvent } from "@/lib/audit-and-export";
+import { logAuditEvent, exportLocalBackup, restoreLocalBackup, downloadJSONFile } from "@/lib/audit-and-export";
+import { isUsingMockClient } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 function SettingsPage() {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(bootstrapQuery());
+  const localMode = isUsingMockClient();
 
   const [fullName, setFullName] = useState("");
   const [householdName, setHouseholdName] = useState("");
@@ -224,66 +226,112 @@ function SettingsPage() {
             </ul>
           </section>
           <section className="rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)]">
-            <h2 className="font-display text-lg font-semibold">Enterprise Governance & Data Recovery</h2>
+            <h2 className="font-display text-lg font-semibold">Data backup & recovery</h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Backup, restore, and enterprise-grade data management operations.
+              {localMode
+                ? "This app is running in local/demo mode — data is stored in this browser. Export a backup file to keep your records, and import it to restore them on another browser or after clearing data."
+                : "This app is connected to a Supabase cloud project. Your data is stored securely in the cloud and is never lost when you close the browser. Manage users and data from your Supabase dashboard."}
             </p>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
                 <h3 className="text-sm font-medium flex items-center gap-2">
-                  <Upload className="size-4 text-primary" /> Restore Data Snapshot
+                  <Upload className="size-4 text-primary" /> Export data
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Upload a previously exported JSON backup file to restore system snapshot state.
+                  {localMode
+                    ? "Download all your records (household, members, categories, transactions, budgets, bills, goals) as a JSON backup file."
+                    : "Download a JSON snapshot of your current dashboard state."}
                 </p>
-                <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted">
-                  Choose JSON File
-                  <input
-                    type="file"
-                    accept=".json"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          try {
-                            const parsed = JSON.parse(event.target?.result as string);
-                            if (parsed && typeof parsed === "object") {
-                              logAuditEvent("RESTORE_DATA", "SECURITY", `Restored backup payload from ${file.name}`);
-                              toast.success("Snapshot verified and restored successfully");
-                            } else {
-                              toast.error("Invalid backup file format");
-                            }
-                          } catch {
-                            toast.error("Failed to parse JSON snapshot");
-                          }
-                        };
-                        reader.readAsText(file);
-                      }
-                    }}
-                  />
-                </label>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (localMode) {
+                      exportLocalBackup();
+                      logAuditEvent("EXPORT_BACKUP", "SECURITY", "Exported full local backup file");
+                    } else {
+                      downloadJSONFile(data ?? {}, `pocket_planner_snapshot_${new Date().toISOString().slice(0, 10)}.json`);
+                      logAuditEvent("EXPORT_BACKUP", "SECURITY", "Exported dashboard snapshot");
+                    }
+                    toast.success("Backup file downloaded");
+                  }}
+                >
+                  <Download className="size-4" /> Download backup
+                </Button>
               </div>
 
               <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
                 <h3 className="text-sm font-medium flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-emerald-600" /> Security & Compliance Status
+                  <History className="size-4 text-primary" /> Restore backup
                 </h3>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between py-1 border-b">
-                    <span className="text-muted-foreground">Data Encryption</span>
-                    <span className="font-semibold text-emerald-600">AES-256 Active</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b">
-                    <span className="text-muted-foreground">Session Isolation</span>
-                    <span className="font-semibold text-emerald-600">Enforced</span>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-muted-foreground">Audit Trail</span>
-                    <span className="font-semibold text-emerald-600">Immutable Ledger</span>
-                  </div>
+                <p className="text-xs text-muted-foreground">
+                  {localMode
+                    ? "Import a previously exported Pocket Planner backup file to restore your records."
+                    : "Cloud-stored data is restored automatically when you sign in — no manual restore needed."}
+                </p>
+                {localMode ? (
+                  <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                    Choose JSON File
+                    <input
+                      type="file"
+                      accept=".json"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            try {
+                              const parsed = JSON.parse(event.target?.result as string);
+                              const result = restoreLocalBackup(parsed);
+                              if (result.ok) {
+                                logAuditEvent("RESTORE_DATA", "SECURITY", `Restored backup from ${file.name}`);
+                                queryClient.clear();
+                                window.location.href = "/";
+                                toast.success(result.message);
+                              } else {
+                                toast.error(result.message);
+                              }
+                            } catch {
+                              toast.error("Failed to parse JSON backup file");
+                            }
+                          };
+                          reader.readAsText(file);
+                        }
+                      }}
+                    />
+                  </label>
+                ) : (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    <ShieldCheck className="size-3.5 text-emerald-600" /> Managed by Supabase
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border bg-muted/20 p-4 space-y-3">
+              <h3 className="text-sm font-medium flex items-center gap-2">
+                <ShieldCheck className="size-4 text-emerald-600" /> Security & data storage status
+              </h3>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Storage location</span>
+                  <span className="font-semibold text-emerald-600">
+                    {localMode ? "This browser only (local)" : "Supabase cloud (PostgreSQL)"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b">
+                  <span className="text-muted-foreground">Authentication</span>
+                  <span className="font-semibold text-emerald-600">
+                    {localMode ? "Local demo session" : "Supabase Auth (email + password)"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-muted-foreground">Data persistence</span>
+                  <span className="font-semibold text-emerald-600">
+                    {localMode ? "Not persistent across devices" : "Persistent cloud storage"}
+                  </span>
                 </div>
               </div>
             </div>

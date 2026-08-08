@@ -36,9 +36,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { dashboardQuery } from "@/lib/queries";
+import { dashboardQuery, bootstrapQuery } from "@/lib/queries";
+import { listTransactions } from "@/lib/pocket.functions";
 import { formatMoney, memberColorVar } from "@/lib/finance";
-import { exportTransactionsCSV, downloadJSONFile, getAuditLogs, logAuditEvent } from "@/lib/audit-and-export";
+import { exportTransactionsCSV, getAuditLogs, logAuditEvent, exportLocalBackup } from "@/lib/audit-and-export";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/reports")({
@@ -59,6 +60,7 @@ const PIE_COLORS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
 function ReportsPage() {
   const [offset, setOffset] = useState(0);
   const { data, isLoading } = useQuery(dashboardQuery(offset));
+  const { data: boot } = useQuery(bootstrapQuery());
   const currency = data?.currency ?? "INR";
   const money = (n: number) => formatMoney(n, currency, true);
 
@@ -104,19 +106,40 @@ function ReportsPage() {
     },
   ];
 
-  const handleCSVExport = () => {
-    if (!data) return;
-    const catMap = Object.fromEntries(data.byCategory.map((c) => [c.name, c.name]));
-    exportTransactionsCSV(data.recent, catMap, currency);
+  const handleCSVExport = async () => {
+    const catMap = Object.fromEntries(
+      (boot?.categories ?? []).map((c) => [c.id, c.name]),
+    );
+    const { expenses, incomes } = await listTransactions({ data: {} });
+    const rows = [
+      ...(expenses ?? []).map((e) => ({
+        id: e.id,
+        occurred_on: e.occurred_on,
+        note: e.note ?? "",
+        amount: e.amount,
+        type: "expense",
+        category_id: e.category_id,
+        is_essential: e.is_essential,
+      })),
+      ...(incomes ?? []).map((i) => ({
+        id: i.id,
+        occurred_on: i.occurred_on,
+        note: i.note ?? i.source,
+        amount: i.amount,
+        type: "income",
+        category_id: null,
+        is_essential: true,
+      })),
+    ].sort((a, b) => b.occurred_on.localeCompare(a.occurred_on));
+    exportTransactionsCSV(rows, catMap, currency);
     logAuditEvent("EXPORT_CSV", "SECURITY", "Exported transaction ledger to CSV format");
-    toast.success("CSV report exported successfully");
+    toast.success(`CSV report exported (${rows.length} records)`);
   };
 
   const handleJSONExport = () => {
-    if (!data) return;
-    downloadJSONFile(data, `pocket_planner_snapshot_${new Date().toISOString().slice(0, 10)}.json`);
-    logAuditEvent("EXPORT_JSON", "SECURITY", "Exported full database state to JSON backup");
-    toast.success("Full system JSON backup downloaded");
+    exportLocalBackup();
+    logAuditEvent("EXPORT_JSON", "SECURITY", "Exported full local data backup to JSON");
+    toast.success("Full data backup downloaded");
   };
 
   return (
