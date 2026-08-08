@@ -89,19 +89,21 @@ function AuthPage() {
   async function handleDemoSignIn() {
     setLoading(true);
     const demoCredentials = { email: "demo@pocketplanner.app", password: "DemoPassword123!" };
-    let { data, error } = await supabase.auth.signInWithPassword(demoCredentials);
+    const signIn = await supabase.auth.signInWithPassword(demoCredentials);
+    let user = signIn.data.user;
+    let error = signIn.error;
     if (error) {
       // Create demo account on the fly if it doesn't exist
       const res = await supabase.auth.signUp({
         ...demoCredentials,
         options: { data: { full_name: "Demo Family" } },
       });
-      data = res.data;
+      user = res.data.user;
       error = res.error;
     }
     setLoading(false);
-    if (error) {
-      toast.error(error.message);
+    if (error || !user) {
+      toast.error(error?.message ?? "Could not sign in to demo account");
       return;
     }
     toast.success("Signed in as Demo User");

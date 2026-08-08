@@ -17,7 +17,7 @@ export async function getProfile(supabase: DB, userId: string): Promise<Profile>
 
   const { data: hh, error: hhErr } = await supabase
     .from("households")
-    .insert({ name: `${name}'s Household` })
+    .insert({ name: `${name}'s Household`, owner_id: userId })
     .select()
     .single();
   if (hhErr) throw new Error(hhErr.message);

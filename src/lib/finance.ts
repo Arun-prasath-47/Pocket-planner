@@ -68,7 +68,16 @@ export function formatMoney(amount: number, currency = "INR", compact = false) {
   }
 }
 
-export const CURRENCIES = ["INR", "USD", "EUR", "GBP", "AUD", "CAD", "AED", "SGD"];
+export const CURRENCIES: { code: string; symbol: string; label: string }[] = [
+  { code: "INR", symbol: "₹", label: "Indian Rupee" },
+  { code: "USD", symbol: "$", label: "US Dollar" },
+  { code: "EUR", symbol: "€", label: "Euro" },
+  { code: "GBP", symbol: "£", label: "British Pound" },
+  { code: "AUD", symbol: "A$", label: "Australian Dollar" },
+  { code: "CAD", symbol: "C$", label: "Canadian Dollar" },
+  { code: "AED", symbol: "د.إ", label: "UAE Dirham" },
+  { code: "SGD", symbol: "S$", label: "Singapore Dollar" },
+];
 
 export const PAYMENT_TYPES = ["cash", "card", "bank transfer", "wallet", "other"];
 

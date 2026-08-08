@@ -78,7 +78,7 @@ export async function parseWithGeminiAI(
   inputText: string,
   categories: string[],
 ): Promise<ParsedTransaction> {
-  const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!apiKey) {
     return parseNaturalLanguageOffline(inputText, categories);
@@ -138,7 +138,7 @@ export async function generateCopilotAdvice(
   prompt: string,
   contextData: any,
 ): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!apiKey) {
     // High quality offline contextual answer generator
@@ -159,7 +159,7 @@ export async function generateCopilotAdvice(
     if (lower.includes("afford") || lower.includes("trip") || lower.includes("buy")) {
       const burnRate = contextData?.prediction?.burnRate ?? 0;
       if (balance > 500) {
-        return `✅ Based on your current surplus of **${curr} ${balance.toLocaleString()}** and daily burn rate of **${curr} Math.round(burnRate)**, you have sufficient liquidity for planned discretionary purchases!`;
+        return `✅ Based on your current surplus of **${curr} ${balance.toLocaleString()}** and daily burn rate of **${curr} ${Math.round(burnRate)}**, you have sufficient liquidity for planned discretionary purchases!`;
       }
       return `⚠️ Your current balance is **${curr} ${balance.toLocaleString()}**. With a daily burn rate of **${curr} ${Math.round(burnRate)}**, we recommend holding off on large discretionary expenses until next cycle.`;
     }

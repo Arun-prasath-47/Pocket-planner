@@ -132,6 +132,7 @@ export function AICommandBar({ categories, members, currency = "INR" }: AIComman
             amount: parsedResult.amount,
             occurredOn: parsedResult.dateStr,
             source: parsedResult.note || "AI Voice Entry",
+            frequency: "irregular",
             memberId: members[0]?.id || null,
           },
         });
