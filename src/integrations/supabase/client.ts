@@ -25,11 +25,22 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-function createSupabaseClient() {
-  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'] || '';
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'] || '';
+export function isUsingMockClient(): boolean {
+  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || '';
+  return (
+    !SUPABASE_URL ||
+    SUPABASE_URL.includes('placeholder.supabase.co') ||
+    !SUPABASE_PUBLISHABLE_KEY ||
+    SUPABASE_PUBLISHABLE_KEY === 'placeholder-key'
+  );
+}
 
-  const isPlaceholder = !SUPABASE_URL || SUPABASE_URL.includes('placeholder.supabase.co') || !SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY === 'placeholder-key';
+function createSupabaseClient() {
+  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
+  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || '';
+
+  const isPlaceholder = isUsingMockClient();
 
   if (isPlaceholder) {
     return createMockSupabase() as unknown as ReturnType<typeof createClient<Database>>;

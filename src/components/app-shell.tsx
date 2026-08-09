@@ -48,15 +48,15 @@ export function AppShell({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { data } = useQuery(bootstrapQuery());
+  const { data, isFetching } = useQuery(bootstrapQuery());
   const [moreOpen, setMoreOpen] = useState(false);
 
   const onboarded = data?.profile?.onboarded;
   useEffect(() => {
-    if (data && !onboarded && pathname !== "/onboarding") {
+    if (data && !onboarded && !isFetching && pathname !== "/onboarding") {
       navigate({ to: "/onboarding", replace: true });
     }
-  }, [data, onboarded, pathname, navigate]);
+  }, [data, onboarded, isFetching, pathname, navigate]);
 
   async function signOut() {
     await queryClient.cancelQueries();

@@ -3,6 +3,7 @@ import { Sparkles, Bot, Send, Loader2, Lightbulb, ChevronUp, ChevronDown } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { generateCopilotAdvice } from "@/lib/gemini-financial-engine";
+import { currencySymbol } from "@/lib/finance";
 
 interface AICopilotWidgetProps {
   contextData: any;
@@ -19,10 +20,12 @@ export function AICopilotWidget({ contextData }: AICopilotWidgetProps) {
   const [loading, setLoading] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
+  const curr = contextData?.currency ?? "INR";
+  const sym = currencySymbol(curr);
   const quickPrompts = [
     "📊 What's my biggest expense category?",
-    "💡 Give me 3 tips to save $300",
-    "✈️ Can I afford a $200 weekend trip?",
+    `💡 Give me 3 tips to save ${sym}300`,
+    `✈️ Can I afford a ${sym}200 weekend trip?`,
   ];
 
   const handleSend = async (textToSend?: string) => {

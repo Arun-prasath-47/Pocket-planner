@@ -31,6 +31,8 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
+  const [checkEmailMode, setCheckEmailMode] = useState<"confirm" | "reset">("confirm");
+  const [forgot, setForgot] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -83,29 +85,28 @@ function AuthPage() {
       navigate({ to: "/dashboard", replace: true });
       return;
     }
+    setCheckEmailMode("confirm");
     setCheckEmail(true);
   }
 
-  async function handleDemoSignIn() {
-    setLoading(true);
-    const demoCredentials = { email: "demo@pocketplanner.app", password: "DemoPassword123!" };
-    let { data, error } = await supabase.auth.signInWithPassword(demoCredentials);
-    if (error) {
-      // Create demo account on the fly if it doesn't exist
-      const res = await supabase.auth.signUp({
-        ...demoCredentials,
-        options: { data: { full_name: "Demo Family" } },
-      });
-      data = res.data;
-      error = res.error;
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = z.string().trim().email("Enter a valid email").max(255).safeParse(email);
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]!.message);
+      return;
     }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
     setLoading(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("Signed in as Demo User");
-    navigate({ to: "/dashboard", replace: true });
+    setCheckEmailMode("reset");
+    setCheckEmail(true);
   }
 
   return (
@@ -122,12 +123,55 @@ function AuthPage() {
           <div className="text-center">
             <h1 className="text-xl font-semibold">Check your email</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              We sent a confirmation link to <strong>{email}</strong>. Click it to activate your
-              account, then come back and sign in.
+              {checkEmailMode === "reset" ? (
+                <>
+                  We sent a password reset link to <strong>{email}</strong>. Click it to choose a
+                  new password, then sign in.
+                </>
+              ) : (
+                <>
+                  We sent a confirmation link to <strong>{email}</strong>. Click it to activate
+                  your account, then come back and sign in.
+                </>
+              )}
             </p>
             <Button className="mt-6 w-full" variant="outline" onClick={() => setCheckEmail(false)}>
               Back to sign in
             </Button>
+          </div>
+        ) : forgot ? (
+          <div>
+            <h1 className="text-xl font-semibold">Reset password</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Enter your account email and we'll send you a link to set a new password.
+            </p>
+            <form onSubmit={handleForgot} className="mt-6 space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Sending…" : "Send reset link"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  setForgot(false);
+                  setEmail("");
+                }}
+              >
+                Back to sign in
+              </Button>
+            </form>
           </div>
         ) : (
           <div>
@@ -151,7 +195,16 @@ function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-primary hover:underline"
+                        onClick={() => setForgot(true)}
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
                     <Input
                       id="password"
                       type="password"
@@ -207,17 +260,6 @@ function AuthPage() {
                 </form>
               </TabsContent>
             </Tabs>
-
-            <div className="mt-6 border-t pt-4">
-              <Button
-                variant="outline"
-                className="w-full border-dashed"
-                onClick={handleDemoSignIn}
-                disabled={loading}
-              >
-                ⚡ Explore Demo Account (1-Click)
-              </Button>
-            </div>
           </div>
         )}
       </div>
