@@ -88,11 +88,21 @@ export function TransactionDialog({
     setFrequency(d?.frequency ?? "monthly");
   }, [open, draft]);
 
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const noteRequired = kind === "expense" && (!selectedCategory || /^other/i.test(selectedCategory.name.trim()));
+
   const save = useMutation({
     mutationFn: async () => {
       const value = Number(amount);
       if (!Number.isFinite(value) || value <= 0) throw new Error("Enter a valid amount");
       if (kind === "expense") {
+        if (noteRequired && !note.trim()) {
+          throw new Error(
+            selectedCategory
+              ? `Add a short note for "${selectedCategory.name}" so this entry stays trackable`
+              : "Add a short note for uncategorised entries so they stay trackable",
+          );
+        }
         return saveExpense({
           data: {
             ...(draft?.id ? { id: draft.id } : {}),
@@ -318,7 +328,12 @@ export function TransactionDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="note">Note</Label>
+            <Label htmlFor="note">
+              Note
+              {noteRequired && (
+                <span className="ml-1 text-xs font-normal text-muted-foreground">(required)</span>
+              )}
+            </Label>
             <Textarea
               id="note"
               value={note}

@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { bootstrapQuery, transactionsQuery, type TransactionFilters } from "@/lib/queries";
 import { deleteTransaction } from "@/lib/pocket.functions";
 import { formatMoney } from "@/lib/finance";
@@ -40,6 +41,9 @@ function TransactionsPage() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<TxDraft | undefined>(undefined);
+  const [confirmTarget, setConfirmTarget] = useState<
+    { id: string; kind: "expense" | "income" } | undefined
+  >(undefined);
 
   const { data: boot } = useQuery(bootstrapQuery());
   const currency = boot?.profile?.currency ?? "INR";
@@ -80,6 +84,7 @@ function TransactionsPage() {
     mutationFn: (v: { id: string; kind: "expense" | "income" }) => deleteTransaction({ data: v }),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
+      setConfirmTarget(undefined);
       toast.success("Deleted");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -231,9 +236,26 @@ function TransactionsPage() {
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <p className="p-10 text-center text-sm text-muted-foreground">
-            No transactions match these filters yet.
-          </p>
+          <div className="p-10 text-center">
+            <p className="text-sm font-medium">
+              {filters.kind !== "all" ||
+              filters.categoryId ||
+              filters.memberId ||
+              filters.tag !== "all" ||
+              search
+                ? "No transactions match these filters"
+                : "No transactions recorded yet"}
+            </p>
+            <Button
+              className="mt-4"
+              onClick={() => {
+                setDraft(undefined);
+                setOpen(true);
+              }}
+            >
+              <Plus className="size-4" /> Add a transaction
+            </Button>
+          </div>
         ) : (
           <ul className="divide-y">
             {rows.map((row) => (
@@ -273,7 +295,7 @@ function TransactionsPage() {
                   variant="ghost"
                   size="icon"
                   aria-label="Delete transaction"
-                  onClick={() => remove.mutate({ id: row.id, kind: row.kind })}
+                  onClick={() => setConfirmTarget({ id: row.id, kind: row.kind })}
                 >
                   <Trash2 className="size-4 text-destructive" />
                 </Button>
@@ -282,6 +304,20 @@ function TransactionsPage() {
           </ul>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmTarget !== undefined}
+        onOpenChange={(v) => {
+          if (!v) setConfirmTarget(undefined);
+        }}
+        title={`Delete this ${confirmTarget?.kind === "income" ? "income" : "expense"}?`}
+        description="This permanently removes the transaction from your records. This action cannot be undone."
+        confirmLabel="Delete entry"
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (confirmTarget) remove.mutate(confirmTarget);
+        }}
+      />
     </AppShell>
   );
 }

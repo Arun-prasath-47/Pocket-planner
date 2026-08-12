@@ -16,11 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { bootstrapQuery } from "@/lib/queries";
 import { deleteCategory, saveCategory, updateSettings } from "@/lib/pocket.functions";
 import { CURRENCIES } from "@/lib/finance";
 import { logAuditEvent, exportLocalBackup, restoreLocalBackup, downloadJSONFile } from "@/lib/audit-and-export";
 import { isUsingMockClient } from "@/integrations/supabase/client";
+import {
+  getStoredMode,
+  getStoredStyle,
+  setMode,
+  setStyle,
+  THEME_STYLES,
+  type ThemeMode,
+  type ThemeStyle,
+} from "@/lib/theme";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -45,6 +55,9 @@ function SettingsPage() {
 
   const [catName, setCatName] = useState("");
   const [catEssential, setCatEssential] = useState(true);
+  const [confirmCatId, setConfirmCatId] = useState<string | null>(null);
+  const [themeStyle, setThemeStyle] = useState<ThemeStyle>(getStoredStyle);
+  const [themeMode, setThemeMode] = useState<ThemeMode>(getStoredMode);
 
   useEffect(() => {
     if (!data) return;
@@ -93,6 +106,7 @@ function SettingsPage() {
     mutationFn: (id: string) => deleteCategory({ data: { id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
+      setConfirmCatId(null);
       toast.success("Category deleted");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -183,8 +197,71 @@ function SettingsPage() {
           </section>
 
           <section className="rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)]">
-            <h2 className="font-display text-lg font-semibold">Categories</h2>
-            <div className="mt-4 flex flex-wrap items-end gap-2">
+            <h2 className="font-display text-lg font-semibold">Appearance</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Choose a look and how Pocket Planner handles light and dark mode on this device.</p>
+
+            <div className="mt-4">
+              <h3 className="text-sm font-medium">Design style</h3>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {THEME_STYLES.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      setThemeStyle(s.id);
+                      setStyle(s.id);
+                      logAuditEvent("THEME_CHANGED", "SETTINGS", `Style set to ${s.id}`);
+                    }}
+                    aria-pressed={themeStyle === s.id}
+                    className={`group rounded-xl border p-3 text-left transition-colors ${
+                      themeStyle === s.id
+                        ? "border-primary bg-primary/10"
+                        : "bg-background hover:bg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      {s.preview.map((c) => (
+                        <span
+                          key={c}
+                          className="size-4 rounded-full ring-1 ring-black/10"
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-2 text-sm font-semibold">{s.name}</div>
+                    <div className="mt-0.5 text-xs leading-snug text-muted-foreground">
+                      {s.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <h3 className="text-sm font-medium">Mode</h3>
+              <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                {(["light", "dark", "system"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      setThemeMode(t);
+                      setMode(t);
+                      logAuditEvent("THEME_CHANGED", "SETTINGS", `Mode set to ${t}`);
+                    }}
+                    className={`rounded-xl border px-4 py-3 text-sm font-medium capitalize transition-colors ${
+                      themeMode === t
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)]">
+            <h2 className="font-display text-lg font-semibold">Categories</h2>            <div className="mt-4 flex flex-wrap items-end gap-2">
               <div className="min-w-44 flex-1 space-y-1">
                 <Label htmlFor="newcat">New category</Label>
                 <Input
@@ -217,7 +294,7 @@ function SettingsPage() {
                     variant="ghost"
                     size="icon"
                     aria-label="Delete category"
-                    onClick={() => removeCat.mutate(c.id)}
+                    onClick={() => setConfirmCatId(c.id)}
                   >
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
@@ -336,6 +413,20 @@ function SettingsPage() {
               </div>
             </div>
           </section>
+
+          <ConfirmDialog
+            open={confirmCatId !== null}
+            onOpenChange={(v) => {
+              if (!v) setConfirmCatId(null);
+            }}
+            title="Delete this category?"
+            description="Past expenses in this category will move to Uncategorised, and any budget set for it will be removed. This cannot be undone."
+            confirmLabel="Delete category"
+            loading={removeCat.isPending}
+            onConfirm={() => {
+              if (confirmCatId) removeCat.mutate(confirmCatId);
+            }}
+          />
         </div>
       )}
     </AppShell>

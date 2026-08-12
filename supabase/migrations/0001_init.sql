@@ -130,6 +130,9 @@ create index budgets_household_id_idx on public.budgets (household_id);
 create index bills_household_id_idx on public.recurring_bills (household_id);
 create index goals_household_id_idx on public.savings_goals (household_id);
 
+create unique index budgets_one_per_category on public.budgets (household_id, category_id) where category_id is not null;
+create unique index budgets_one_overall on public.budgets (household_id) where category_id is null;
+
 -- ---------------------------------------------------------------------------
 -- HELPER: the household id of the current user
 -- ---------------------------------------------------------------------------
@@ -178,7 +181,19 @@ create policy "profiles_insert" on public.profiles
 
 drop policy if exists "profiles_update" on public.profiles;
 create policy "profiles_update" on public.profiles
-  for update using (id = auth.uid());
+  for update
+  using (id = auth.uid())
+  with check (
+    id = auth.uid()
+    and (
+      household_id is null
+      or household_id = public.get_my_household_id()
+      or exists (
+        select 1 from public.households h
+        where h.id = household_id and h.owner_id = auth.uid()
+      )
+    )
+  );
 
 -- household_members --------------------------------------------------------
 drop policy if exists "members_select" on public.household_members;
@@ -195,7 +210,7 @@ create policy "members_update" on public.household_members
 
 drop policy if exists "members_delete" on public.household_members;
 create policy "members_delete" on public.household_members
-  for delete using (household_id = public.get_my_household_id());
+  for delete using (household_id = public.get_my_household_id() and user_id is null);
 
 -- categories ---------------------------------------------------------------
 drop policy if exists "categories_all" on public.categories;
@@ -232,6 +247,38 @@ drop policy if exists "goals_all" on public.savings_goals;
 create policy "goals_all" on public.savings_goals
   for all using (household_id = public.get_my_household_id())
   with check (household_id = public.get_my_household_id());
+
+-- ---------------------------------------------------------------------------
+-- DATA INTEGRITY & VALIDATION (server-side defense in depth)
+-- Client forms already cap these; the database enforces them regardless.
+-- ---------------------------------------------------------------------------
+alter table public.profiles add constraint if not exists profiles_currency_valid
+  check (currency in ('INR','USD','EUR','GBP','AUD','CAD','AED','SGD'));
+
+alter table public.expenses add constraint if not exists expenses_amount_sane
+  check (amount < 1000000000);
+alter table public.expenses add constraint if not exists expenses_note_len
+  check (char_length(note) <= 200);
+alter table public.expenses add constraint if not exists expenses_date_sane
+  check (occurred_on between '2000-01-01' and current_date + interval '1 day');
+
+alter table public.incomes add constraint if not exists incomes_amount_sane
+  check (amount < 1000000000);
+alter table public.incomes add constraint if not exists incomes_note_len
+  check (char_length(note) <= 200);
+alter table public.incomes add constraint if not exists incomes_date_sane
+  check (occurred_on between '2000-01-01' and current_date + interval '1 day');
+
+alter table public.budgets add constraint if not exists budgets_amount_sane
+  check (amount < 1000000000);
+
+alter table public.recurring_bills add constraint if not exists bills_amount_sane
+  check (amount < 1000000000);
+
+alter table public.savings_goals add constraint if not exists goals_target_sane
+  check (target_amount < 1000000000);
+alter table public.savings_goals add constraint if not exists goals_saved_sane
+  check (saved_amount < 1000000000);
 
 -- ---------------------------------------------------------------------------
 -- AUTO-PROVISION A NEW USER'S PROFILE + HOUSEHOLD ON SIGN-UP

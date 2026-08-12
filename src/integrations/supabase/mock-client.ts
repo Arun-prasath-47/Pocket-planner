@@ -36,6 +36,36 @@ function setCurrentUser(user: any) {
   }
 }
 
+function getUsers(): any[] {
+  try {
+    const raw = localStorage.getItem("pocket_mock_users");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function setUsers(users: any[]) {
+  try {
+    localStorage.setItem("pocket_mock_users", JSON.stringify(users));
+  } catch (e) {
+    console.error("Failed to save users", e);
+  }
+}
+
+function stableUserId(email: string): string {
+  let hash = 0;
+  for (let i = 0; i < email.length; i++) {
+    hash = (hash * 31 + email.charCodeAt(i)) >>> 0;
+  }
+  return `usr_${hash.toString(36)}_${email.split("@")[0].replace(/[^a-z0-9]/gi, "").slice(0, 12)}`;
+}
+
+export function getMockUserByEmail(email: string): any {
+  const users = getUsers();
+  return users.find((u) => u.email === email) || null;
+}
+
 class MockQueryBuilder {
   private table: string;
   private filters: ((row: any) => boolean)[] = [];
@@ -230,23 +260,33 @@ export const createMockSupabase = () => ({
     },
     async signUp({ email, password, options }: any) {
       const name = options?.data?.full_name || email.split("@")[0] || "User";
+      const users = getUsers();
+      const existing = users.find((u) => u.email === email);
+      if (existing) {
+        return {
+          data: { user: null, session: null },
+          error: { message: "An account with this email already exists. Please sign in instead." },
+        };
+      }
       const user = {
-        id: `usr_${Date.now()}`,
+        id: stableUserId(email),
         email,
+        password,
         user_metadata: { full_name: name },
       };
+      setUsers([...users, user]);
       setCurrentUser(user);
       return {
         data: { user, session: { user, access_token: "mock_token" } },
         error: null,
       };
     },
-    async signInWithPassword({ email }: any) {
-      const user = getCurrentUser() || {
-        id: `usr_${Date.now()}`,
-        email,
-        user_metadata: { full_name: email.split("@")[0] || "User" },
-      };
+    async signInWithPassword({ email, password }: any) {
+      const users = getUsers();
+      const user = users.find((u) => u.email === email);
+      if (!user || (password && user.password !== password)) {
+        return { data: { user: null, session: null }, error: { message: "Invalid login credentials" } };
+      }
       setCurrentUser(user);
       return {
         data: { user, session: { user, access_token: "mock_token" } },
@@ -257,7 +297,22 @@ export const createMockSupabase = () => ({
       setCurrentUser(null);
       return { error: null };
     },
-    async resetPasswordForEmail() {
+    async signInWithOAuth() {
+      return {
+        data: { url: null },
+        error: {
+          message:
+            "Google and Microsoft sign-in become active when Pocket Planner is connected to a live Supabase project. For now, use your email to sign in.",
+        },
+      };
+    },
+    async resetPasswordForEmail(email: any) {
+      const users = getUsers();
+      const emailStr = typeof email === "string" ? email : email?.email;
+      const user = users.find((u) => u.email === emailStr);
+      if (!user) {
+        return { data: {}, error: { message: "There is no account registered with this email id." } };
+      }
       return { data: {}, error: null };
     },
     async updateUser({ data }: any) {

@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { bootstrapQuery } from "@/lib/queries";
 import { deleteMember, saveMember } from "@/lib/pocket.functions";
 import { memberColorVar } from "@/lib/finance";
@@ -46,6 +47,7 @@ function HouseholdPage() {
   const members = data?.members ?? [];
 
   const [open, setOpen] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [name, setName] = useState("");
   const [relation, setRelation] = useState<(typeof RELATIONS)[number]>("spouse");
@@ -93,6 +95,7 @@ function HouseholdPage() {
     mutationFn: (id: string) => deleteMember({ data: { id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
+      setConfirmId(null);
       toast.success("Member removed");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -181,7 +184,17 @@ function HouseholdPage() {
         {isLoading ? (
           <Skeleton className="h-48 w-full rounded-xl" />
         ) : members.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">No members added yet.</p>
+          <div className="p-10 text-center">
+            <UserPlus className="mx-auto size-10 text-muted-foreground/50" />
+            <p className="mt-3 text-sm font-medium">No members yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add your spouse, parents or children so expenses can be split by who spent and who
+              they spent for.
+            </p>
+            <Button className="mt-4" onClick={openAdd}>
+              <Plus className="size-4" /> Add your first member
+            </Button>
+          </div>
         ) : (
           <ul className="divide-y">
             {members.map((m) => (
@@ -204,7 +217,12 @@ function HouseholdPage() {
                     Edit
                   </Button>
                   {!m.user_id && (
-                    <Button variant="ghost" size="icon" aria-label="Delete member" onClick={() => remove.mutate(m.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete member"
+                      onClick={() => setConfirmId(m.id)}
+                    >
                       <Trash2 className="size-4 text-destructive" />
                     </Button>
                   )}
@@ -214,6 +232,20 @@ function HouseholdPage() {
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(v) => {
+          if (!v) setConfirmId(null);
+        }}
+        title="Remove this member?"
+        description="They'll be removed from the household. Past expenses already recorded under their name are kept."
+        confirmLabel="Remove member"
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (confirmId) remove.mutate(confirmId);
+        }}
+      />
     </AppShell>
   );
 }

@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { goalsQuery, bootstrapQuery } from "@/lib/queries";
 import { deleteGoal, saveGoal } from "@/lib/pocket.functions";
 import { formatMoney } from "@/lib/finance";
@@ -36,6 +37,7 @@ function GoalsPage() {
   const currency = boot?.profile?.currency ?? "INR";
 
   const [open, setOpen] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [targetAmount, setTargetAmount] = useState("");
   const [savedAmount, setSavedAmount] = useState("0");
@@ -66,6 +68,7 @@ function GoalsPage() {
     mutationFn: (id: string) => deleteGoal({ data: { id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
+      setConfirmId(null);
       toast.success("Goal removed");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -146,9 +149,17 @@ function GoalsPage() {
         {isLoading ? (
           <Skeleton className="h-40 w-full rounded-2xl" />
         ) : !data || data.length === 0 ? (
-          <p className="col-span-full rounded-2xl border bg-card p-10 text-center text-sm text-muted-foreground">
-            No savings goals created yet.
-          </p>
+          <div className="col-span-full rounded-2xl border bg-card p-10 text-center">
+            <Target className="mx-auto size-10 text-muted-foreground/50" />
+            <p className="mt-3 text-sm font-medium">No savings goals yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Set a target for an emergency fund, vacation or a big purchase, then track progress
+              each month.
+            </p>
+            <Button className="mt-4" onClick={() => setOpen(true)}>
+              <Plus className="size-4" /> Add your first goal
+            </Button>
+          </div>
         ) : (
           data.map((g) => {
             const target = Number(g.target_amount);
@@ -166,7 +177,12 @@ function GoalsPage() {
                       {money(saved)} of {money(target)}
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon" aria-label="Delete goal" onClick={() => remove.mutate(g.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Delete goal"
+                    onClick={() => setConfirmId(g.id)}
+                  >
                     <Trash2 className="size-4 text-destructive" />
                   </Button>
                 </div>
@@ -181,6 +197,20 @@ function GoalsPage() {
           })
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(v) => {
+          if (!v) setConfirmId(null);
+        }}
+        title="Delete this goal?"
+        description="This permanently removes the goal and its saved amount. This action cannot be undone."
+        confirmLabel="Delete goal"
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (confirmId) remove.mutate(confirmId);
+        }}
+      />
     </AppShell>
   );
 }

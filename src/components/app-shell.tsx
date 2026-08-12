@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button";
 import { bootstrapQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
-import { AICommandBar } from "@/components/ai-command-bar";
 
 export const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -62,7 +61,7 @@ export function AppShell({
     await queryClient.cancelQueries();
     queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/", replace: true });
   }
 
   const secondaryNavActive = NAV.slice(4).some((item) => item.to === pathname);
@@ -109,11 +108,6 @@ export function AppShell({
               {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
             </div>
             <div className="flex items-center gap-2">
-              <AICommandBar
-                categories={data?.categories || []}
-                members={data?.members || []}
-                currency={data?.profile?.currency || "INR"}
-              />
               {actions}
             </div>
           </div>

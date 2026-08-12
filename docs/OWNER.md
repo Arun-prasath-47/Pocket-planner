@@ -18,7 +18,16 @@ household's rows. User accounts live in Supabase Auth.
 2. In the project's **SQL Editor**, run `supabase/migrations/0001_init.sql`.
    This creates all tables, RLS policies, and a trigger that auto-provisions a
    profile, household, "self" member, and default categories when a user signs up.
-3. In the app repo, create `.env.local`:
+3. **Then run `supabase/migrations/0002_launch_hardening.sql`** (also from the
+   **SQL Editor**). This adds the security hardening from the pre-launch audit:
+   - a guard so a user can never be moved into someone else's household,
+   - protection so linked household members can't be deleted by accident,
+   - rules that prevent duplicate budgets,
+   - database-level sanity limits (amounts, dates, notes, currency) so bad data
+     can never be written even if the app is bypassed.
+   It is safe to run at any time — even if the first migration was already
+   applied. It does not touch or delete any existing data.
+4. In the app repo, create `.env.local`:
 
    ```bash
    VITE_SUPABASE_URL="https://<project-ref>.supabase.co"
@@ -26,7 +35,7 @@ household's rows. User accounts live in Supabase Auth.
    ```
 
    Both values come from Supabase **Settings → API**.
-4. Rebuild/restart the app. Every user who signs up is now stored in your
+5. Rebuild/restart the app. Every user who signs up is now stored in your
    Supabase project.
 
 ## Viewing users and their emails
@@ -102,4 +111,50 @@ backdoor). The safe ways to handle passwords:
   reliably.
 - **Email confirmation** should be left ON (default) so accounts are only
   active after the user confirms their address.
+
+## Launch checklist (what has already been done)
+
+Everything below is implemented and verified (app builds cleanly). It is all
+sitting locally **uncommitted** — nothing is pushed to the repository until the
+owner confirms.
+
+1. **Database hardening (migration `0002_launch_hardening.sql`)** — apply in
+   Supabase before launch (see One-time setup, step 3).
+2. **Accident-proof deletes** — every delete in the app (transactions,
+   categories, bills, goals, household members, removing a budget) now asks
+   "Are you sure?" before removing anything.
+3. **Friendlier empty pages** — Bills, Goals, Household, Transactions and
+   Budgets pages now explain what to do and offer a one-tap start button when
+   there's no data yet.
+4. **Friendly validation instead of raw errors** — amounts can't be negative or
+   absurdly large, dates can't be in the future or before year 2000, notes and
+   sources are length-capped, and the salary date must be 1–28. Users now see a
+   clear message instead of a database error.
+
+## Going live (deployment)
+
+The app is a standard static frontend (Vite + React). Host it on any static
+host (Netlify, Vercel, Cloudflare Pages):
+
+1. **Build:** `npm run build` → outputs the `dist/` folder.
+2. **Env vars:** set the same two variables as `.env.local` (from Supabase
+   **Settings → API**) in the host's environment:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+3. **Routing:** SPA fallback is already configured — `public/_redirects` for
+   Netlify and `vercel.json` for Vercel. No extra work needed.
+4. Recommended host settings:
+   - **Netlify:** Build command `npm run build`, publish directory `dist`.
+   - **Vercel:** Framework preset "Vite", build `npm run build`, output `dist`.
+
+### Before switching real users on
+
+- [ ] Run both migrations (`0001`, then `0002`) in Supabase SQL Editor.
+- [ ] Confirm the app talks to Supabase (Settings page shows "Supabase cloud").
+- [ ] Enable custom SMTP in Supabase (Settings → Auth → SMTP) so reset and
+      confirmation emails are reliable.
+- [ ] Test one full sign-up on the live URL (confirm email → complete setup →
+      add an expense → delete it → confirm the "Are you sure?" prompt appears).
+- [ ] In Supabase **Authentication → Users**, confirm the new account appears.
+
 

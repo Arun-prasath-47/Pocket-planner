@@ -56,6 +56,8 @@ export async function getProfile(supabase: DB, userId: string): Promise<Profile>
     { name: "Shopping & Clothes", is_essential: false, icon: "ShoppingBag", sort_order: 6 },
     { name: "Bills & Subscriptions", is_essential: true, icon: "Receipt", sort_order: 7 },
     { name: "Entertainment & Fun", is_essential: false, icon: "Film", sort_order: 8 },
+    { name: "Lending", is_essential: false, icon: "Handshake", sort_order: 9 },
+    { name: "Others", is_essential: false, icon: "Ellipsis", sort_order: 10 },
   ];
   await supabase.from("categories").insert(
     defaultCategories.map((c) => ({

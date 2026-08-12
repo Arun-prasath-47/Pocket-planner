@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { billsQuery, bootstrapQuery } from "@/lib/queries";
 import { deleteBill, payBill, saveBill } from "@/lib/pocket.functions";
 import { formatMoney, toDateKey } from "@/lib/finance";
@@ -44,6 +45,7 @@ function RemindersPage() {
   const categories = boot?.categories ?? [];
 
   const [open, setOpen] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDay, setDueDay] = useState("1");
@@ -83,6 +85,7 @@ function RemindersPage() {
     mutationFn: (id: string) => deleteBill({ data: { id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
+      setConfirmId(null);
       toast.success("Bill removed");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -171,9 +174,17 @@ function RemindersPage() {
         {isLoading ? (
           <Skeleton className="h-48 w-full rounded-xl" />
         ) : !data || data.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">
-            No recurring bills added yet.
-          </p>
+          <div className="p-10 text-center">
+            <BellRing className="mx-auto size-10 text-muted-foreground/50" />
+            <p className="mt-3 text-sm font-medium">No recurring bills yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add rent, EMIs, subscriptions or school fees and mark them paid each month so they
+              show up in your budget automatically.
+            </p>
+            <Button className="mt-4" onClick={() => setOpen(true)}>
+              <Plus className="size-4" /> Add your first bill
+            </Button>
+          </div>
         ) : (
           <ul className="divide-y">
             {data.map((b) => {
@@ -201,7 +212,12 @@ function RemindersPage() {
                         Mark paid
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" aria-label="Delete bill" onClick={() => remove.mutate(b.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete bill"
+                      onClick={() => setConfirmId(b.id)}
+                    >
                       <Trash2 className="size-4 text-destructive" />
                     </Button>
                   </div>
@@ -211,6 +227,20 @@ function RemindersPage() {
           </ul>
         )}
       </section>
+
+      <ConfirmDialog
+        open={confirmId !== null}
+        onOpenChange={(v) => {
+          if (!v) setConfirmId(null);
+        }}
+        title="Delete this bill?"
+        description="The recurring bill and its schedule will be removed. Past payments recorded as expenses are kept."
+        confirmLabel="Delete bill"
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (confirmId) remove.mutate(confirmId);
+        }}
+      />
     </AppShell>
   );
 }

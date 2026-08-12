@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pocket Planner — UI Direction Preview</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; padding:24px; }
+  header h1 { font-size:20px; margin-bottom:4px; }
+  header p { color:#94a3b8; font-size:13px; margin-bottom:20px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap:20px; }
+
+  /* ---- Theme A: OLED Dark (trust blue) ---- */
+  .a { --bg:#0f172a; --card:#1e293b; --card2:#16213b; --fg:#f8fafc; --muted:#94a3b8;
+       --primary:#3b82f6; --primary-fg:#ffffff; --green:#10b981; --red:#ef4444;
+       --border:rgba(255,255,255,.08); --radius:16px;
+       --font-display:'Quicksand', sans-serif; --font-body:'Quicksand', sans-serif; }
+
+  /* ---- Theme B: Soft UI Evolution (light) ---- */
+  .b { --bg:#f4f6f9; --card:#ffffff; --card2:#eef2f7; --fg:#1e293b; --muted:#64748b;
+       --primary:#1e40af; --primary-fg:#ffffff; --green:#059669; --red:#dc2626;
+       --border:#e2e8f0; --radius:18px;
+       --font-display:'Fira Sans', sans-serif; --font-body:'Fira Sans', sans-serif; }
+
+  /* ---- Theme C: Premium Bento (black + gold, light) ---- */
+  .c { --bg:#fafaf9; --card:#ffffff; --card2:#f5f5f4; --fg:#0c0a09; --muted:#78716c;
+       --primary:#1c1917; --primary-fg:#ffffff; --green:#15803d; --red:#dc2626;
+       --border:#e7e5e4; --radius:20px;
+       --font-display:'DM Sans', sans-serif; --font-body:'DM Sans', sans-serif; }
+
+  /* ---- Theme D: Exaggerated Minimalism (gold, dark) ---- */
+  .d { --bg:#0f172a; --card:#1a2234; --card2:#202a3e; --fg:#f8fafc; --muted:#94a3b8;
+       --primary:#f59e0b; --primary-fg:#0f172a; --green:#34d399; --red:#ef4444;
+       --border:#334155; --radius:12px;
+       --font-display:'IBM Plex Sans', sans-serif; --font-body:'IBM Plex Sans', sans-serif; }
+
+  .theme { background:var(--bg); color:var(--fg); border-radius:20px; padding:18px;
+           font-family:var(--font-body); border:1px solid var(--border); }
+  .theme .badge { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .theme .badge b { font-family:var(--font-display); font-size:14px; }
+  .theme .badge span { font-size:10px; text-transform:uppercase; letter-spacing:.5px;
+                       background:var(--card2); padding:3px 8px; border-radius:999px; color:var(--muted); }
+
+  .nav { display:flex; align-items:center; gap:14px; background:var(--card); padding:10px 12px;
+         border-radius:var(--radius); border:1px solid var(--border); margin-bottom:12px; }
+  .logo { display:flex; align-items:center; gap:8px; font-family:var(--font-display); font-weight:700; font-size:14px; }
+  .logo .dot { width:26px; height:26px; border-radius:9px; background:var(--primary); color:var(--primary-fg);
+               display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .navlinks { display:flex; gap:12px; margin-left:auto; font-size:12px; color:var(--muted); }
+  .navlinks .active { color:var(--fg); font-weight:600; }
+
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
+  .stat { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:12px; }
+  .stat .l { font-size:11px; color:var(--muted); margin-bottom:4px; }
+  .stat .v { font-family:var(--font-display); font-size:19px; font-weight:700; letter-spacing:-.02em; }
+  .stat .hint { font-size:10px; margin-top:2px; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+
+  .panel { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:12px; }
+  .panel h3 { font-family:var(--font-display); font-size:13px; margin-bottom:4px; }
+  .panel .sub { font-size:11px; color:var(--muted); margin-bottom:12px; }
+
+  .chart { display:flex; align-items:flex-end; gap:6px; height:90px; margin-top:6px; }
+  .bar { flex:1; background:linear-gradient(180deg, var(--primary), transparent); border-radius:4px 4px 0 0; opacity:.85; }
+  .bar:nth-child(2n) { opacity:.55; }
+
+  .bento { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .bento .cell { background:var(--card2); border:1px solid var(--border); border-radius:var(--radius); padding:12px; }
+  .bento .cell .l { font-size:10px; color:var(--muted); margin-bottom:3px; }
+  .bento .cell .v { font-family:var(--font-display); font-size:16px; font-weight:700; }
+
+  .list { display:flex; flex-direction:column; gap:8px; }
+  .row { display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--card);
+         border:1px solid var(--border); border-radius:12px; }
+  .row .ic { width:28px; height:28px; border-radius:9px; background:var(--card2); display:flex;
+             align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+  .row .tx { flex:1; font-size:12px; } .row .tx small { display:block; color:var(--muted); font-size:10px; }
+  .row .amt { font-family:var(--font-display); font-weight:700; font-size:13px; }
+
+  .cta { display:flex; gap:8px; }
+  .btn { flex:1; text-align:center; padding:10px; border-radius:var(--radius); font-size:13px; font-weight:600; cursor:pointer; }
+  .btn.pri { background:var(--primary); color:var(--primary-fg); }
+  .btn.sec { background:var(--card2); color:var(--fg); border:1px solid var(--border); }
+
+  .chip { font-size:11px; color:var(--muted); margin-top:12px; padding-top:10px; border-top:1px dashed var(--border); line-height:1.6; }
+  .chip b { color:var(--fg); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pocket Planner — 4 UI directions</h1>
+  <p>Generated with the UI UX Pro Max skill. Each panel shows your dashboard styled in a different design system. Pick the one you like and I'll apply it.</p>
+</header>
+<div class="grid">
+
+  <!-- ================= THEME A: OLED DARK ================= -->
+  <div class="theme a">
+    <div class="badge"><b>1 · OLED Dark</b><span>Mode: dark only</span></div>
+    <div class="nav">
+      <div class="logo"><span class="dot">P</span> Pocket Planner</div>
+      <div class="navlinks"><span class="active">Home</span><span>Budget</span><span>Bills</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Income</div><div class="v pos">₹15,000</div></div>
+      <div class="stat"><div class="l">Expenses</div><div class="v neg">₹5,480</div><div class="hint neg">+8% vs last cycle</div></div>
+      <div class="stat"><div class="l">Balance left</div><div class="v">₹9,520</div></div>
+    </div>
+    <div class="panel">
+      <h3>Will it last?</h3><div class="sub">12 days until 1st · On track</div>
+      <div class="chart">
+        <div class="bar" style="height:35%"></div><div class="bar" style="height:48%"></div>
+        <div class="bar" style="height:42%"></div><div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:55%"></div><div class="bar" style="height:72%"></div>
+        <div class="bar" style="height:68%"></div>
+      </div>
+      <div class="chip"><b>Safe/day</b> ₹380 · <b>Burn</b> ₹230 · <b>Projected</b> ₹6,200</div>
+    </div>
+    <div class="list">
+      <div class="row"><span class="ic">🍿</span><div class="tx">Movie night <small>Entertainment</small></div><div class="amt neg">-₹500</div></div>
+      <div class="row"><span class="ic">🛒</span><div class="tx">Groceries <small>Groceries &amp; Food</small></div><div class="amt neg">-₹1,200</div></div>
+      <div class="row"><span class="ic">⛽</span><div class="tx">Petrol <small>Transport</small></div><div class="amt neg">-₹700</div></div>
+    </div>
+    <div class="cta" style="margin-top:12px"><button class="btn pri">+ Add</button><button class="btn sec">Details</button></div>
+    <div class="chip"><b>Trust blue + profit green</b> on deep navy. High contrast, WCAG AAA, easy on the eyes at night.</div>
+  </div>
+
+  <!-- ================= THEME B: SOFT UI LIGHT ================= -->
+  <div class="theme b">
+    <div class="badge"><b>2 · Soft UI Light</b><span>Mode: light</span></div>
+    <div class="nav">
+      <div class="logo"><span class="dot">P</span> Pocket Planner</div>
+      <div class="navlinks"><span class="active">Home</span><span>Budget</span><span>Bills</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Income</div><div class="v pos">₹15,000</div></div>
+      <div class="stat"><div class="l">Expenses</div><div class="v neg">₹5,480</div><div class="hint neg">+8% vs last cycle</div></div>
+      <div class="stat"><div class="l">Balance left</div><div class="v">₹9,520</div></div>
+    </div>
+    <div class="panel">
+      <h3>Will it last?</h3><div class="sub">12 days until 1st · On track</div>
+      <div class="chart">
+        <div class="bar" style="height:35%"></div><div class="bar" style="height:48%"></div>
+        <div class="bar" style="height:42%"></div><div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:55%"></div><div class="bar" style="height:72%"></div>
+        <div class="bar" style="height:68%"></div>
+      </div>
+      <div class="chip"><b>Safe/day</b> ₹380 · <b>Burn</b> ₹230 · <b>Projected</b> ₹6,200</div>
+    </div>
+    <div class="bento">
+      <div class="cell"><div class="l">Safe to spend / day</div><div class="v">₹380</div></div>
+      <div class="cell"><div class="l">Current burn / day</div><div class="v neg">₹230</div></div>
+      <div class="cell"><div class="l">Projected month-end</div><div class="v pos">₹6,200</div></div>
+      <div class="cell"><div class="l">Upcoming bills</div><div class="v">₹3,400</div></div>
+    </div>
+    <div class="cta" style="margin-top:12px"><button class="btn pri">+ Add</button><button class="btn sec">Details</button></div>
+    <div class="chip"><b>Corporate trust-blue</b> on white. Soft shadows, calm, precise — reads like a professional banking app.</div>
+  </div>
+
+  <!-- ================= THEME C: PREMIUM BENTO ================= -->
+  <div class="theme c">
+    <div class="badge"><b>3 · Premium Bento</b><span>Mode: light</span></div>
+    <div class="nav">
+      <div class="logo"><span class="dot">P</span> Pocket Planner</div>
+      <div class="navlinks"><span class="active">Home</span><span>Budget</span><span>Bills</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Income</div><div class="v pos">₹15,000</div></div>
+      <div class="stat"><div class="l">Expenses</div><div class="v neg">₹5,480</div><div class="hint neg">+8% vs last cycle</div></div>
+      <div class="stat"><div class="l">Balance left</div><div class="v">₹9,520</div></div>
+    </div>
+    <div class="panel">
+      <h3>Will it last?</h3><div class="sub">12 days until 1st · On track</div>
+      <div class="chart">
+        <div class="bar" style="height:35%"></div><div class="bar" style="height:48%"></div>
+        <div class="bar" style="height:42%"></div><div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:55%"></div><div class="bar" style="height:72%"></div>
+        <div class="bar" style="height:68%"></div>
+      </div>
+      <div class="chip"><b>Safe/day</b> ₹380 · <b>Burn</b> ₹230 · <b>Projected</b> ₹6,200</div>
+    </div>
+    <div class="list">
+      <div class="row"><span class="ic">🍿</span><div class="tx">Movie night <small>Entertainment</small></div><div class="amt neg">-₹500</div></div>
+      <div class="row"><span class="ic">🛒</span><div class="tx">Groceries <small>Groceries &amp; Food</small></div><div class="amt neg">-₹1,200</div></div>
+      <div class="row"><span class="ic">⛽</span><div class="tx">Petrol <small>Transport</small></div><div class="amt neg">-₹700</div></div>
+    </div>
+    <div class="cta" style="margin-top:12px"><button class="btn pri">+ Add</button><button class="btn sec">Details</button></div>
+    <div class="chip"><b>Premium black + gold accent</b>. Apple-style modular cards, generous rounding, high-end feel.</div>
+  </div>
+
+  <!-- ================= THEME D: GOLD MINIMAL DARK ================= -->
+  <div class="theme d">
+    <div class="badge"><b>4 · Gold Minimal (dark)</b><span>Mode: dark</span></div>
+    <div class="nav">
+      <div class="logo"><span class="dot">P</span> Pocket Planner</div>
+      <div class="navlinks"><span class="active">Home</span><span>Budget</span><span>Bills</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Income</div><div class="v pos">₹15,000</div></div>
+      <div class="stat"><div class="l">Expenses</div><div class="v neg">₹5,480</div><div class="hint neg">+8% vs last cycle</div></div>
+      <div class="stat"><div class="l">Balance left</div><div class="v">₹9,520</div></div>
+    </div>
+    <div class="panel">
+      <h3>Will it last?</h3><div class="sub">12 days until 1st · On track</div>
+      <div class="chart">
+        <div class="bar" style="height:35%"></div><div class="bar" style="height:48%"></div>
+        <div class="bar" style="height:42%"></div><div class="bar" style="height:60%"></div>
+        <div class="bar" style="height:55%"></div><div class="bar" style="height:72%"></div>
+        <div class="bar" style="height:68%"></div>
+      </div>
+      <div class="chip"><b>Safe/day</b> ₹380 · <b>Burn</b> ₹230 · <b>Projected</b> ₹6,200</div>
+    </div>
+    <div class="list">
+      <div class="row"><span class="ic">🍿</span><div class="tx">Movie night <small>Entertainment</small></div><div class="amt neg">-₹500</div></div>
+      <div class="row"><span class="ic">🛒</span><div class="tx">Groceries <small>Groceries &amp; Food</small></div><div class="amt neg">-₹1,200</div></div>
+      <div class="row"><span class="ic">⛽</span><div class="tx">Petrol <small>Transport</small></div><div class="amt neg">-₹700</div></div>
+    </div>
+    <div class="cta" style="margin-top:12px"><button class="btn pri">+ Add</button><button class="btn sec">Details</button></div>
+    <div class="chip"><b>Gold + charcoal</b> on navy. Bold oversized type, high contrast, statement minimalism with a wealth feel.</div>
+  </div>
+
+</div>
+</body>
+</html>

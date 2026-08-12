@@ -20,7 +20,6 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 import { AppShell } from "@/components/app-shell";
-import { AICopilotWidget } from "@/components/ai-copilot-widget";
 import { TransactionDialog } from "@/components/transaction-dialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -125,8 +124,6 @@ function DashboardPage() {
             />
             <StatCard label="Balance left" value={money(data.totals.balance)} />
           </div>
-
-          <AICopilotWidget contextData={data} />
 
           <section className="rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)]">
             <div className="flex flex-wrap items-start justify-between gap-3">

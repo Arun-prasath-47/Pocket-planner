@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
-import { createMockSupabase } from './mock-client';
+import { createMockSupabase, getMockUserByEmail } from './mock-client';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -34,6 +34,21 @@ export function isUsingMockClient(): boolean {
     !SUPABASE_PUBLISHABLE_KEY ||
     SUPABASE_PUBLISHABLE_KEY === 'placeholder-key'
   );
+}
+
+// Account-aware sign-in helper (Google/Microsoft style "continue" step).
+// In mock mode we can look the email up locally. In real mode we cannot
+// safely enumerate users, so we return "unknown" and let the UI fall back
+// to a combined sign-in / create-account decision.
+export function emailHasAccount(email: string): boolean | null {
+  if (!isUsingMockClient()) return null;
+  return Boolean(getMockUserByEmail(email));
+}
+
+export function mockUserName(email: string): string | null {
+  if (!isUsingMockClient()) return null;
+  const user = getMockUserByEmail(email);
+  return user?.user_metadata?.full_name || null;
 }
 
 function createSupabaseClient() {

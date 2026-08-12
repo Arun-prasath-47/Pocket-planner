@@ -51,7 +51,7 @@ export default function App() {
       <main className="max-w-4xl mx-auto px-6 py-16 flex-1 flex flex-col justify-center items-center text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-medium mb-6">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Powered by Gemini & Antigravity Agent</span>
+          <span>Powered by Pocket Planner</span>
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900 max-w-2xl leading-tight mb-4">

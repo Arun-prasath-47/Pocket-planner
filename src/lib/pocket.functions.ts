@@ -1,10 +1,39 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getProfile, requireHousehold, num, sum } from "@/lib/pocket-helpers";
+import { getProfile, requireHousehold, num, sum, type DB } from "@/lib/pocket-helpers";
 import { getCycle, toDateKey } from "@/lib/finance";
+import { addDays } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
 type ExpenseRow = Database["public"]["Tables"]["expenses"]["Row"];
 type IncomeRow = Database["public"]["Tables"]["incomes"]["Row"];
+
+const MAX_AMOUNT = 1000000000;
+const MIN_DATE = "2000-01-01";
+const MAX_NOTE_LEN = 200;
+
+function assertAmount(value: number, label = "Amount") {
+  if (!Number.isFinite(value)) throw new Error(`${label} must be a number`);
+  if (value < 0) throw new Error(`${label} cannot be negative`);
+  if (value >= MAX_AMOUNT)
+    throw new Error(`${label} is too large — keep it below 1,000,000,000`);
+}
+
+function assertDate(value: string) {
+  if (!value) throw new Error("Date is required");
+  if (value < MIN_DATE) throw new Error("Date cannot be earlier than 1 Jan 2000");
+  const maxDate = toDateKey(addDays(new Date(), 1));
+  if (value > maxDate) throw new Error("Date cannot be in the future");
+}
+
+function assertNote(value: string | null | undefined) {
+  if ((value ?? "").length > MAX_NOTE_LEN)
+    throw new Error(`Note is too long — keep it under ${MAX_NOTE_LEN} characters`);
+}
+
+function assertCycleDay(day: number) {
+  if (!Number.isInteger(day) || day < 1 || day > 28)
+    throw new Error("Salary date must be a whole number between 1 and 28");
+}
 
 async function getUserId(): Promise<string> {
   const { data, error } = await supabase.auth.getUser();
@@ -18,25 +47,56 @@ export async function getBootstrap() {
   if (!profile.household_id) {
     return { profile, household: null, members: [], categories: [] };
   }
-  const [household, members, categories] = await Promise.all([
+  const [household, members] = await Promise.all([
     supabase.from("households").select("*").eq("id", profile.household_id).maybeSingle(),
     supabase
       .from("household_members")
       .select("*")
       .eq("household_id", profile.household_id)
       .order("created_at"),
-    supabase
-      .from("categories")
-      .select("*")
-      .eq("household_id", profile.household_id)
-      .order("sort_order"),
   ]);
+
+  await ensureExtraCategories(supabase, profile.household_id);
+  const categories = await getCategoriesRaw(supabase, profile.household_id);
+
   return {
     profile,
     household: household.data,
     members: members.data ?? [],
-    categories: categories.data ?? [],
+    categories,
   };
+}
+
+const EXTRA_CATEGORIES: Array<{ name: string; is_essential: boolean; icon: string }> = [
+  { name: "Lending", is_essential: false, icon: "Handshake" },
+  { name: "Others", is_essential: false, icon: "Ellipsis" },
+];
+
+async function getCategoriesRaw(supabase: DB, householdId: string) {
+  const { data } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("household_id", householdId)
+    .order("sort_order");
+  return data ?? [];
+}
+
+export async function ensureExtraCategories(supabase: DB, householdId: string) {
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("household_id", householdId);
+  const names = new Set((existing ?? []).map((c: { name: string }) => c.name.toLowerCase()));
+  const missing = EXTRA_CATEGORIES.filter((c) => !names.has(c.name.toLowerCase()));
+  if (missing.length === 0) return;
+  const { error } = await supabase.from("categories").insert(
+    missing.map((c, i) => ({
+      household_id: householdId,
+      ...c,
+      sort_order: 90 + i,
+    })),
+  );
+  if (error) console.warn("ensureExtraCategories:", error);
 }
 
 export async function completeOnboarding({
@@ -57,6 +117,8 @@ export async function completeOnboarding({
 }) {
   const userId = await getUserId();
   const { householdId } = await requireHousehold(supabase, userId);
+  if (!data.fullName.trim()) throw new Error("Please enter your name");
+  assertCycleDay(data.cycleStartDay);
 
   await supabase
     .from("profiles")
@@ -105,6 +167,7 @@ export async function updateSettings({
 }) {
   const userId = await getUserId();
   const { householdId } = await requireHousehold(supabase, userId);
+  assertCycleDay(data.cycleStartDay);
   const { error } = await supabase
     .from("profiles")
     .update({
@@ -270,6 +333,9 @@ export async function saveExpense({
 }) {
   const userId = await getUserId();
   const { householdId } = await requireHousehold(supabase, userId);
+  assertAmount(data.amount);
+  assertDate(data.occurredOn);
+  assertNote(data.note);
   const row = {
     household_id: householdId,
     amount: data.amount,
@@ -331,6 +397,10 @@ export async function saveIncome({
 }) {
   const userId = await getUserId();
   const { householdId } = await requireHousehold(supabase, userId);
+  assertAmount(data.amount);
+  assertDate(data.occurredOn);
+  assertNote(data.note);
+  if ((data.source ?? "").length > 60) throw new Error("Source is too long — keep it under 60 characters");
   const row = {
     household_id: householdId,
     amount: data.amount,
@@ -409,6 +479,7 @@ export async function saveBudget({
 }) {
   const userId = await getUserId();
   const { householdId } = await requireHousehold(supabase, userId);
+  if (data.amount > 0) assertAmount(data.amount);
   let existing = supabase.from("budgets").select("id").eq("household_id", householdId);
   existing = data.categoryId
     ? existing.eq("category_id", data.categoryId)
@@ -457,6 +528,10 @@ export async function saveBill({
 }) {
   const userId = await getUserId();
   const { householdId } = await requireHousehold(supabase, userId);
+  assertAmount(data.amount);
+  if ((data.name ?? "").trim().length === 0) throw new Error("Bill name is required");
+  if (data.dueDay < 1 || data.dueDay > 31)
+    throw new Error("Due day must be between 1 and 31");
   const row = {
     household_id: householdId,
     name: data.name,
@@ -538,6 +613,9 @@ export async function saveGoal({
 }) {
   const userId = await getUserId();
   const { householdId } = await requireHousehold(supabase, userId);
+  assertAmount(data.targetAmount, "Target amount");
+  assertAmount(data.savedAmount, "Saved amount");
+  if ((data.name ?? "").trim().length === 0) throw new Error("Goal name is required");
   const row = {
     household_id: householdId,
     name: data.name,

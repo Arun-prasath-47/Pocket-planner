@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +32,10 @@ function BudgetsPage() {
   const { data: boot } = useQuery(bootstrapQuery());
   const currency = boot?.profile?.currency ?? "INR";
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [confirmBudget, setConfirmBudget] = useState<{
+    categoryId: string | null;
+    amount: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -43,10 +48,20 @@ function BudgetsPage() {
     mutationFn: (v: { categoryId: string | null; amount: number }) => saveBudget({ data: v }),
     onSuccess: async () => {
       await queryClient.invalidateQueries();
+      setConfirmBudget(null);
       toast.success("Budget updated");
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  function handleSave(categoryId: string | null, currentLimit: number) {
+    const amount = Number(drafts[categoryId ?? "overall"] || 0);
+    if (amount === 0 && currentLimit > 0) {
+      setConfirmBudget({ categoryId, amount: 0 });
+      return;
+    }
+    save.mutate({ categoryId, amount });
+  }
 
   const money = (n: number) => formatMoney(n, currency, true);
 
@@ -71,7 +86,7 @@ function BudgetsPage() {
                 onChange={(e) => setDrafts((d) => ({ ...d, overall: e.target.value }))}
               />
               <Button
-                onClick={() => save.mutate({ categoryId: null, amount: Number(drafts["overall"] || 0) })}
+                onClick={() => handleSave(null, data.overall.limit)}
                 disabled={save.isPending}
               >
                 Save
@@ -84,44 +99,71 @@ function BudgetsPage() {
 
           <section className="rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)]">
             <h2 className="font-display text-lg font-semibold">Category budgets</h2>
-            <div className="mt-4 space-y-5">
-              {data.categories.map((c) => (
-                <div key={c.id}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Label className="text-sm">
-                      {c.name}
-                      {c.isEssential && (
-                        <span className="ml-2 text-xs text-muted-foreground">essential</span>
-                      )}
-                    </Label>
-                    <span className="tabular text-xs text-muted-foreground">
-                      {money(c.spent)}
-                      {c.limit > 0 && ` / ${money(c.limit)}`}
-                    </span>
+            {data.categories.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed p-6 text-center">
+                <p className="text-sm font-medium">No spending categories yet</p>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+                  Add categories like Food, Transport or Rent in Settings, then set a monthly limit
+                  for each here.
+                </p>
+                <Button asChild variant="outline" size="sm" className="mt-4">
+                  <Link to="/settings">Go to Settings</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-5">
+                {data.categories.map((c) => (
+                  <div key={c.id}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Label className="text-sm">
+                        {c.name}
+                        {c.isEssential && (
+                          <span className="ml-2 text-xs text-muted-foreground">essential</span>
+                        )}
+                      </Label>
+                      <span className="tabular text-xs text-muted-foreground">
+                        {money(c.spent)}
+                        {c.limit > 0 && ` / ${money(c.limit)}`}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        inputMode="decimal"
+                        className="money"
+                        placeholder="No limit"
+                        value={drafts[c.id] ?? ""}
+                        onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => handleSave(c.id, c.limit)}
+                        disabled={save.isPending}
+                      >
+                        Save
+                      </Button>
+                    </div>
+                    {c.limit > 0 && <Bar spent={c.spent} limit={c.limit} className="mt-2" />}
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <Input
-                      inputMode="decimal"
-                      className="money"
-                      placeholder="No limit"
-                      value={drafts[c.id] ?? ""}
-                      onChange={(e) => setDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
-                    />
-                    <Button
-                      variant="outline"
-                      onClick={() => save.mutate({ categoryId: c.id, amount: Number(drafts[c.id] || 0) })}
-                      disabled={save.isPending}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                  {c.limit > 0 && <Bar spent={c.spent} limit={c.limit} className="mt-2" />}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmBudget !== null}
+        onOpenChange={(v) => {
+          if (!v) setConfirmBudget(null);
+        }}
+        title="Remove this budget?"
+        description="Setting the limit to 0 removes this budget. Spending in this category will no longer be tracked against a limit."
+        confirmLabel="Remove budget"
+        loading={save.isPending}
+        onConfirm={() => {
+          if (confirmBudget) save.mutate(confirmBudget);
+        }}
+      />
     </AppShell>
   );
 }

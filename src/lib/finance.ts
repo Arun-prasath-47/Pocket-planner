@@ -55,13 +55,14 @@ export function toDateKey(d: Date) {
 
 export function formatMoney(amount: number, currency = "INR", compact = false) {
   const locale = currency === "INR" ? "en-IN" : "en-US";
+  const useCompact = compact && Math.abs(amount) >= 100000;
   try {
     return new Intl.NumberFormat(locale, {
       style: "currency",
       currency,
-      maximumFractionDigits: compact ? 0 : 2,
+      maximumFractionDigits: useCompact ? 1 : 0,
       minimumFractionDigits: 0,
-      notation: compact ? "compact" : "standard",
+      notation: useCompact ? "compact" : "standard",
     }).format(amount);
   } catch {
     return `${currency} ${amount.toFixed(0)}`;
