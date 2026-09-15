@@ -1,20 +1,31 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Pocket Planner
 
-# Run and deploy your AI Studio app
+Privacy-focused personal and household budgeting built with React, TypeScript, Vite, and Supabase.
 
-This contains everything you need to run your app locally.
+## Local development
 
-View your app in AI Studio: https://ai.studio/apps/d44af486-3d12-40b0-a92a-3a990fca5656
+```bash
+npm ci
+cp .env.example .env.local
+npm run dev
+```
 
-## Run Locally
+## Required production variables
 
-**Prerequisites:**  Node.js
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `VITE_ENABLE_DEMO_MODE=false`
 
+Never commit service-role keys, database passwords, OAuth secrets, or `.env.local`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Quality checks
+
+```bash
+npm test
+npm run build
+npm run typecheck
+```
+
+## Deployment
+
+Cloudflare Pages: build command `npm run build`, output directory `dist`, Node.js 22. Apply all SQL files in `supabase/migrations` in order. Configure the production URL in Supabase Authentication redirect settings.
